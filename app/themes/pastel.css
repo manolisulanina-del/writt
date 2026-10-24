@@ -1,0 +1,113 @@
+/* Pastel homepage theme: soft pinks, lilacs and mint, rounded shapes, cute icons.
+   Scoped to [data-home-theme="pastel"] (app/(main)/page.tsx). Text colors keep at
+   least 4.5:1 contrast on every background here. */
+
+[data-home-theme="pastel"] {
+  --paper: #fff4f8;
+  --surface: #ffffff;
+  --muted: #f3e8ff;
+  --ink: #3b2550;
+  --ink-soft: #6a5480;
+  --line: #f0d4e8;
+  --accent: #c2185b;
+  --accent-strong: #a3154d;
+  --accent-soft: #ffe0ef;
+  --on-accent: #ffffff;
+  --plum: #6f4fbf;
+  --plum-soft: #ebe3ff;
+  --success: #2f7a4f;
+  --shadow: 170 110 160;
+  --theme-heading-font: var(--font-pastel), ui-rounded, system-ui, sans-serif;
+  color-scheme: light;
+  background:
+    /* Polka dots in two colors, over soft pink, lilac and mint light. */
+    radial-gradient(circle, rgb(255 143 184 / 0.22) 2px, transparent 2.5px) 0 0 / 34px 34px,
+    radial-gradient(circle, rgb(185 157 255 / 0.2) 2px, transparent 2.5px) 17px 17px / 34px 34px,
+    radial-gradient(60rem 30rem at 0% 0%, #ffe1ee 0%, transparent 60%),
+    radial-gradient(50rem 30rem at 100% 20%, #e9ddff 0%, transparent 60%),
+    radial-gradient(60rem 40rem at 50% 100%, #d9f6ea 0%, transparent 60%),
+    #fff6fa;
+  font-family: var(--font-pastel), ui-rounded, system-ui, sans-serif;
+}
+
+[data-home-theme="pastel"] :is(h1, h2, h3) {
+  font-family: var(--theme-heading-font);
+  font-weight: 800;
+}
+
+/* Rounder everything. */
+[data-home-theme="pastel"] .rounded-md {
+  border-radius: 0.75rem;
+}
+[data-home-theme="pastel"] .rounded-xl {
+  border-radius: 1.4rem;
+}
+[data-home-theme="pastel"] .rounded-2xl {
+  border-radius: 1.9rem;
+}
+
+/* "WRITT" and section kickers become little stickers. */
+[data-home-theme="pastel"] [data-theme-part="kicker"] {
+  display: inline-block;
+  padding: 0.2rem 0.75rem;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: #ffe0ef;
+  color: #a3154d;
+  box-shadow: 0 3px 0 #f3c3da;
+}
+[data-home-theme="pastel"] [data-theme-part="heading"] [data-theme-part="kicker"] {
+  background: #ebe3ff;
+  color: #5a3fa6;
+  box-shadow: 0 3px 0 #d6c8fb;
+}
+
+/* A wavy underline under "tonight?", and a heart after each section title. */
+[data-home-theme="pastel"] [data-theme-part="hero"] h1 em {
+  text-decoration: underline wavy #ffb3cf 3px;
+  text-underline-offset: 10px;
+}
+[data-home-theme="pastel"] [data-theme-part="heading"] h2::after {
+  content: " ♡";
+  color: #ff8fb8;
+}
+
+/* Section dividers are a wavy ribbon instead of a line. */
+[data-home-theme="pastel"] [data-theme-part="rule"] {
+  height: 10px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='10'%3E%3Cpath d='M0 5q6-6 12 0t12 0' fill='none' stroke='%23ffb3cf' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E")
+    repeat-x center / 24px 10px;
+}
+
+/* Covers look like stickers: a white border, tilted a little, straightening on hover. */
+[data-home-theme="pastel"] [data-theme-part="cover"] > :first-child {
+  border: 5px solid #fff;
+  box-shadow: 0 8px 20px -10px rgb(170 110 160 / 0.55);
+}
+[data-home-theme="pastel"] [data-theme-part="card"]:nth-child(odd) [data-theme-part="cover"] {
+  rotate: -1.4deg;
+}
+[data-home-theme="pastel"] [data-theme-part="card"]:nth-child(even) [data-theme-part="cover"] {
+  rotate: 1.4deg;
+}
+[data-home-theme="pastel"] [data-theme-part="card"]:hover [data-theme-part="cover"] {
+  rotate: 0deg;
+}
+
+/* Fandom tiles in soft candy colors, with dark text. */
+[data-home-theme="pastel"] [data-theme-part="fandom"] {
+  border: 3px solid #fff;
+  color: #3b2550;
+}
+[data-home-theme="pastel"] li:nth-child(4n + 1) > [data-theme-part="fandom"] {
+  background: #ffd6e7;
+}
+[data-home-theme="pastel"] li:nth-child(4n + 2) > [data-theme-part="fandom"] {
+  background: #e3d9ff;
+}
+[data-home-theme="pastel"] li:nth-child(4n + 3) > [data-theme-part="fandom"] {
+  background: #d4f5e6;
+}
+[data-home-theme="pastel"] li:nth-child(4n + 4) > [data-theme-part="fandom"] {
+  background: #fff0c2;
+}

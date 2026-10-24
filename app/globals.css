@@ -1,26 +1,313 @@
 @import "tailwindcss";
+/* Homepage themes (lib/themes.ts): one file each. */
+@import "./themes/pastel.css";
+@import "./themes/emo.css";
+@import "./themes/analog-horror.css";
+
+/* Theme is chosen by data-theme on <html>, set before paint by the inline
+   script in app/layout.tsx (stored choice, else the system preference). */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --paper: #f6f1e7;
+  --surface: #fffdf8;
+  --muted: #ede5d6;
+  --ink: #1d1a16;
+  --ink-soft: #5d554a;
+  --line: #e0d5c1;
+  --accent: #d2452a;
+  --accent-strong: #b23720;
+  --accent-soft: #f8dfd5;
+  --on-accent: #fffaf5;
+  --plum: #3d2f63;
+  --plum-soft: #e6e0f4;
+  --success: #2f7a4f;
+  --danger: #b42318;
+  --shadow: 29 26 22;
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --paper: #14110e;
+  --surface: #1d1915;
+  --muted: #29231d;
+  --ink: #f2eadd;
+  --ink-soft: #aa9f8f;
+  --line: #3a3129;
+  --accent: #ff6a48;
+  --accent-strong: #ff8466;
+  --accent-soft: #3d1e15;
+  --on-accent: #1a0d08;
+  --plum: #bca9f2;
+  --plum-soft: #2c2540;
+  --success: #6ccf96;
+  --danger: #ff7b6e;
+  --shadow: 0 0 0;
+  color-scheme: dark;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-muted: var(--muted);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
+  --color-plum: var(--plum);
+  --color-plum-soft: var(--plum-soft);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display), ui-serif, Georgia, serif;
+  --font-read: var(--font-read), ui-serif, Georgia, serif;
+  --shadow-card: 0 1px 0 rgb(var(--shadow) / 0.04), 0 8px 24px -12px rgb(var(--shadow) / 0.18);
+  --shadow-lift: 0 2px 0 rgb(var(--shadow) / 0.05), 0 18px 40px -16px rgb(var(--shadow) / 0.28);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background: var(--paper);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Faint paper grain, kept off in high-contrast and print contexts. */
+@media screen and (prefers-contrast: no-preference) {
+  body {
+    background-image: radial-gradient(rgb(var(--shadow) / 0.035) 1px, transparent 1px);
+    background-size: 3px 3px;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---- Story typography (reader and editor share it) ---- */
+.prose-writt {
+  font-family: var(--font-read);
+  font-size: 1.125rem;
+  line-height: 1.8;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.prose-writt > * + * {
+  margin-top: 1em;
+}
+.prose-writt h2 {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  line-height: 1.25;
+  font-weight: 600;
+  margin-top: 1.6em;
+}
+.prose-writt h3 {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin-top: 1.4em;
+}
+.prose-writt blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 1rem;
+  color: var(--ink-soft);
+  font-style: italic;
+}
+.prose-writt ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+}
+.prose-writt ol {
+  list-style: decimal;
+  padding-left: 1.5rem;
+}
+.prose-writt li + li {
+  margin-top: 0.35em;
+}
+.prose-writt a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.prose-writt code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+  background: var(--muted);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+.prose-writt pre {
+  background: var(--muted);
+  padding: 1rem;
+  border-radius: 10px;
+  overflow-x: auto;
+}
+.prose-writt pre code {
+  background: none;
+  padding: 0;
+}
+.prose-writt hr {
+  border: none;
+  text-align: center;
+  margin: 2em 0;
+}
+.prose-writt hr::after {
+  content: "✦  ✦  ✦";
+  color: var(--ink-soft);
+  letter-spacing: 0.5em;
+}
+.prose-writt img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin-inline: auto;
+  border-radius: 10px;
+}
+
+/* Tiptap editor surface */
+.writt-editor .ProseMirror {
+  min-height: 60vh;
+  outline: none;
+}
+.writt-editor .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--ink-soft);
+  opacity: 0.6;
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+.writt-editor .ProseMirror img.ProseMirror-selectednode {
+  outline: 3px solid var(--accent);
+}
+
+/* ---- Reader settings (components/reader/ReaderSurface.tsx) ---- */
+.reader-surface .prose-writt {
+  font-family: var(--reader-font, var(--font-read));
+  font-size: var(--reader-size, 1.125rem);
+  line-height: var(--reader-leading, 1.8);
+}
+.reader-surface[data-reader-theme="light"] {
+  --paper: #f6f1e7;
+  --surface: #fffdf8;
+  --muted: #ede5d6;
+  --ink: #1d1a16;
+  --ink-soft: #5d554a;
+  --line: #e0d5c1;
+  --accent: #d2452a;
+  --accent-soft: #f8dfd5;
+  --plum: #3d2f63;
+  --plum-soft: #e6e0f4;
+  background: var(--surface);
+  color: var(--ink);
+}
+.reader-surface[data-reader-theme="dark"] {
+  --paper: #14110e;
+  --surface: #1d1915;
+  --muted: #29231d;
+  --ink: #f2eadd;
+  --ink-soft: #aa9f8f;
+  --line: #3a3129;
+  --accent: #ff6a48;
+  --accent-soft: #3d1e15;
+  --plum: #bca9f2;
+  --plum-soft: #2c2540;
+  background: var(--surface);
+  color: var(--ink);
+}
+.reader-surface[data-reader-theme="sepia"] {
+  --paper: #efe1c4;
+  --surface: #f5ead3;
+  --muted: #e8d7b6;
+  --ink: #3d2e1e;
+  --ink-soft: #6b5640;
+  --line: #dcc8a4;
+  --accent: #b5482b;
+  --accent-soft: #f0d2bf;
+  --plum: #5a3f2a;
+  --plum-soft: #ead9bd;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+/* Chart series color (validated for each surface with the dataviz palette checker). */
+:root {
+  --chart: #d2452a;
+}
+[data-theme="dark"] {
+  --chart: #e85a3a;
+}
+
+/* "+50 coins" after publishing (components/coins/CoinBurst.tsx). */
+@keyframes coin-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.9);
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(0) scale(1.05);
+  }
+  25% {
+    transform: translateY(0) scale(1);
+  }
+  80% {
+    opacity: 1;
+    transform: translateY(-6px);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-24px);
+  }
+}
+.coin-burst > * {
+  animation: coin-rise 2.6s ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .coin-burst > * {
+    animation: none;
+  }
+}
+
+/* Homepage theme ornaments (components/shop/ThemeDecor.tsx): a slow, gentle bob. */
+.theme-ornament {
+  position: absolute;
+  animation: theme-float 7s ease-in-out infinite alternate;
+}
+@keyframes theme-float {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-10px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .theme-ornament {
+    animation: none;
+  }
 }

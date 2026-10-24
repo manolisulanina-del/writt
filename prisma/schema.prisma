@@ -1,0 +1,765 @@
+// Writt data model (Prisma 6 + MongoDB).
+// MongoDB has no migrations: apply this schema with `npx prisma db push`.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum Visibility {
+  DRAFT
+  PRIVATE
+  PUBLIC
+}
+
+enum ReactionType {
+  LIKE
+  DISLIKE
+}
+
+enum ReportReason {
+  NUDITY
+  VIOLENT_GRAPHIC
+  TERRORISM_HATE
+  SEXUAL_ASSAULT_THREATS
+  SELF_HARM
+  HARASSMENT_BULLYING
+  SPAM_SCAM
+  COPYRIGHT
+  WRONG_AGE_RANGE
+  OTHER
+}
+
+enum ReportStatus {
+  OPEN
+  REVIEWED
+  DISMISSED
+}
+
+enum HotMode {
+  AUTO
+  ON
+  OFF
+}
+
+enum Rating {
+  EVERYONE
+  TEEN
+  MATURE
+}
+
+enum BookStatus {
+  ONGOING
+  COMPLETED
+}
+
+enum TagKind {
+  FANDOM
+  TAG
+}
+
+enum AppealStatus {
+  OPEN
+  APPROVED
+  DENIED
+}
+
+// WRITER is a normal account. FAMILY is a parent-only account made while
+// approving a child's sign-up: no profile, only the family dashboard.
+enum UserKind {
+  WRITER
+  FAMILY
+}
+
+// Users aged 7 to 15 need a parent's permission (lib/kids.ts).
+enum ConsentState {
+  NOT_REQUIRED
+  PENDING
+  GRANTED
+  REVOKED
+}
+
+enum ContactMethod {
+  EMAIL
+  PHONE
+}
+
+enum CoinReason {
+  BOOK_PUBLISHED
+  CHAPTER_PUBLISHED
+  BOOK_REMOVED
+  BOOK_RESTORED
+  ADMIN_GIVE
+  ADMIN_TAKE
+  THEME_PURCHASE
+}
+
+model User {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+
+  // A placeholder username is generated at account creation (MongoDB unique
+  // indexes treat missing values as duplicates), and `needsSetup` stays true
+  // until the user picks a real one during onboarding.
+  username           String  @unique
+  needsSetup         Boolean @default(true)
+  // Free-form display name shown on the profile. Not unique; `username` stays the handle.
+  nickname           String?
+  passwordHash       String?
+  phone              String?
+  bio                String?
+  securityQuestion   String?
+  securityAnswerHash String?
+  hasSeenTutorial    Boolean @default(false)
+  role               Role    @default(USER)
+
+  // Can't create books until this time. Set automatically when a book is
+  // removed for reports (kind REPORTS) or by the admin's /block (kind ADMIN).
+  createBlockedUntil DateTime?
+  createBlockReason  String?
+  createBlockKind    String?
+  // Admin sanctions. A ban far in the future (year 9999) means forever.
+  bannedUntil DateTime?
+  banReason   String?
+  mutedUntil  DateTime?
+
+  // Content preferences. Without a birth date a user is treated as under 18
+  // for Mature books (lib/content.ts).
+  birthDate      DateTime?
+  hideMature     Boolean   @default(false)
+  hiddenWarnings String[]
+  // Font size, spacing, font and background for the reader (lib/reader-prefs.ts).
+  readerPrefs    Json?
+
+  // ---- Family accounts (lib/kids.ts, lib/family.ts) ----
+  kind            UserKind     @default(WRITER)
+  consent         ConsentState @default(NOT_REQUIRED)
+  // A kid's account still waiting for a parent is deleted after this time.
+  consentDeadline DateTime?
+  // Paused by a parent: the child can log in but only sees a notice.
+  paused          Boolean      @default(false)
+  // Restrictions a parent changed by hand ({ key: boolean }). Keys they never
+  // touched follow the defaults for the child's age group.
+  kidControls     Json?
+  // The age group the family was last told about ("YOUNGER" or "OLDER"), so
+  // turning 13 and 16 can be noticed and announced once.
+  kidGroup        String?
+
+  // ---- Coins and homepage themes (lib/coins.ts, lib/themes.ts) ----
+  // Always equals the sum of the user's CoinTransaction amounts.
+  coins     Int    @default(0)
+  homeTheme String @default("default")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accounts        Account[]
+  sessions        Session[]
+  fanfics         Fanfic[]
+  comments        Comment[]
+  reactions       Reaction[]
+  views           View[]
+  reports         Report[]     @relation("ReportReporter")
+  reviewedReports Report[]     @relation("ReportReviewer")
+  files           StoredFile[]
+  appeals         Appeal[]
+  appealMessages  AppealMessage[]
+  notifications   Notification[]
+  following       Follow[]          @relation("Follower")
+  followers       Follow[]          @relation("Following")
+  blocking        Block[]           @relation("Blocker")
+  blockedBy       Block[]           @relation("Blocked")
+  library         LibraryEntry[]
+  progress        ReadingProgress[]
+  tagsCreated     Tag[]
+  familyChildren  FamilyLink[]      @relation("FamilyParent")
+  familyParent    FamilyLink?       @relation("FamilyChild")
+  consentRequest  ConsentRequest?
+  coinHistory     CoinTransaction[]
+  themes          ThemeOwnership[]
+  conversation    Conversation?
+}
+
+// ---- Auth.js models ----
+
+model Account {
+  id                String  @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String  @db.ObjectId
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.String
+  access_token      String? @db.String
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.String
+  session_state     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+// Writt uses JWT sessions (required by the Credentials provider), so this
+// collection stays empty today. It is kept so the adapter contract is complete
+// and database sessions can be enabled later without a schema change.
+model Session {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  sessionToken String   @unique
+  userId       String   @db.ObjectId
+  expires      DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ---- Stories ----
+
+model Fanfic {
+  id          String     @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  excerpt     String     @default("")
+  coverUrl    String?
+  musicUrl    String?
+  musicVolume Int        @default(70)
+  visibility  Visibility @default(DRAFT)
+
+  // Denormalized counters so feeds can sort and render without aggregations.
+  views        Int @default(0)
+  likeCount    Int @default(0)
+  dislikeCount Int @default(0)
+  commentCount Int @default(0)
+
+  summary          String      @default("")
+  rating           Rating?
+  warnings         String[]
+  status           BookStatus  @default(ONGOING)
+  // Counts over chapters that are published (not scheduled for later).
+  wordCount        Int         @default(0)
+  chapterCount     Int         @default(0)
+  saveCount        Int         @default(0)
+  // When the story itself last changed (views and likes don't count).
+  contentUpdatedAt DateTime    @default(now())
+  // When followers were told about this book; chapters track their own.
+  announcedAt      DateTime?
+
+  // Moderation. A removed book is hidden from everyone but the admin and can be
+  // restored; /delete erases it for good.
+  removed        Boolean   @default(false)
+  removedAt      DateTime?
+  removedReason  String?
+  featured       Boolean   @default(false)
+  featuredAt     DateTime?
+  hotMode        HotMode   @default(AUTO)
+  commentsLocked Boolean   @default(false)
+  // A child (ages 7 to 12) asked to publish this book; it stays private until
+  // a parent approves it in the family dashboard.
+  awaitingApproval Boolean @default(false)
+  // When this book was first checked for coins. Chapters it had then count as
+  // part of the book; only chapters added later earn chapter coins.
+  coinsCheckedAt   DateTime?
+
+  authorId    String    @db.ObjectId
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  author      User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  chapters    Chapter[]
+  comments    Comment[]
+  reactions   Reaction[]
+  viewRecords View[]
+  reports     Report[]
+  appeals     Appeal[]
+  tags        BookTag[]
+  savedBy     LibraryEntry[]
+  readers     ReadingProgress[]
+  follows     Follow[]
+
+  @@index([visibility, removed, views])
+  @@index([featured, featuredAt])
+  @@index([visibility, views])
+  @@index([visibility, publishedAt])
+  @@index([authorId, visibility])
+  @@index([title])
+}
+
+model Chapter {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  order       Int
+  title       String?
+  fanficId    String    @db.ObjectId
+  noteStart   String?
+  noteEnd     String?
+  // Null means published with the book; a future time hides it until then.
+  publishAt   DateTime?
+  // When followers and savers were notified. Always written explicitly (null
+  // until announced) so filters on it match.
+  announcedAt DateTime?
+  wordCount   Int       @default(0)
+  // True once this chapter earned coins or was counted as part of the book.
+  coinsChecked Boolean  @default(false)
+
+  fanfic Fanfic @relation(fields: [fanficId], references: [id], onDelete: Cascade)
+  pages  Page[]
+
+  @@unique([fanficId, order])
+  @@index([announcedAt, publishAt])
+}
+
+model Page {
+  id        String @id @default(auto()) @map("_id") @db.ObjectId
+  order     Int
+  // Sanitized Tiptap/ProseMirror document JSON (see lib/rich-text.ts).
+  content   Json
+  chapterId String @db.ObjectId
+
+  chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@unique([chapterId, order])
+}
+
+// ---- Engagement ----
+
+model Comment {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  body        String
+  authorId    String   @db.ObjectId
+  fanficId    String   @db.ObjectId
+  // Replies are one level deep: parentId always points at a top-level comment.
+  // Written explicitly as null for top-level comments so filters on it match.
+  parentId    String?  @db.ObjectId
+  // The book's author "hearted" this comment.
+  authorHeart Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  author  User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  fanfic  Fanfic    @relation(fields: [fanficId], references: [id], onDelete: Cascade)
+  parent  Comment?  @relation("Replies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies Comment[] @relation("Replies")
+
+  @@index([fanficId, parentId, createdAt])
+  @@index([fanficId, createdAt])
+  @@index([authorId])
+}
+
+model Reaction {
+  id        String       @id @default(auto()) @map("_id") @db.ObjectId
+  type      ReactionType
+  userId    String       @db.ObjectId
+  fanficId  String       @db.ObjectId
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fanfic Fanfic @relation(fields: [fanficId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fanficId])
+  @@index([fanficId, type])
+}
+
+model View {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  fanficId  String   @db.ObjectId
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fanfic Fanfic @relation(fields: [fanficId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fanficId])
+  @@index([fanficId])
+}
+
+model Report {
+  id           String       @id @default(auto()) @map("_id") @db.ObjectId
+  reason       ReportReason
+  details      String?
+  status       ReportStatus @default(OPEN)
+  reporterId   String       @db.ObjectId
+  fanficId     String       @db.ObjectId
+  reviewedById String?      @db.ObjectId
+  reviewedAt   DateTime?
+  createdAt    DateTime     @default(now())
+
+  reporter   User   @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reviewedBy User?  @relation("ReportReviewer", fields: [reviewedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  fanfic     Fanfic @relation(fields: [fanficId], references: [id], onDelete: Cascade)
+
+  @@unique([reporterId, fanficId])
+  @@index([status, createdAt])
+  @@index([fanficId])
+}
+
+// ---- Infrastructure ----
+
+// Image bytes for the "mongodb" storage driver (lib/storage/mongodb.ts).
+// MongoDB documents are capped at 16 MB, so uploads are limited well below that.
+model StoredFile {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  data        Bytes
+  contentType String
+  size        Int
+  ownerId     String   @db.ObjectId
+  createdAt   DateTime @default(now())
+
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId])
+}
+
+// Fixed-window counters for lib/rate-limit.ts. Stored in the database so
+// limits hold across serverless instances.
+model RateLimit {
+  id      String   @id @default(auto()) @map("_id") @db.ObjectId
+  key     String   @unique
+  count   Int
+  resetAt DateTime
+
+  @@index([resetAt])
+}
+
+// ---- Admin ----
+
+// A user's request to restore a removed book. Messages go only between the
+// appeal's sender and the admin.
+model Appeal {
+  id            String       @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String       @db.ObjectId
+  fanficId      String       @db.ObjectId
+  bookTitle     String
+  message       String
+  status        AppealStatus @default(OPEN)
+  decision      String?
+  // True while the latest word is the user's, so the admin knows to respond.
+  awaitingAdmin Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  closedAt      DateTime?
+
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fanfic   Fanfic          @relation(fields: [fanficId], references: [id], onDelete: Cascade)
+  messages AppealMessage[]
+
+  @@index([status, createdAt])
+  @@index([userId, fanficId, status])
+  @@index([fanficId])
+}
+
+model AppealMessage {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  appealId  String   @db.ObjectId
+  authorId  String   @db.ObjectId
+  fromAdmin Boolean
+  body      String
+  createdAt DateTime @default(now())
+
+  appeal Appeal @relation(fields: [appealId], references: [id], onDelete: Cascade)
+  author User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([appealId, createdAt])
+}
+
+// In-site notifications (the bell). Never sent outside Writt.
+model Notification {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  kind      String
+  title     String
+  body      String
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read, createdAt])
+}
+
+// Every admin action, newest first in the admin panel's Log tab.
+model AdminLog {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  adminId     String   @db.ObjectId
+  command     String
+  action      String
+  targetType  String
+  targetId    String?
+  targetLabel String
+  reason      String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([targetType, targetId])
+}
+
+// Site-wide switches set from the admin panel (announcement, maintenance, report threshold).
+model SiteSetting {
+  id    String @id @default(auto()) @map("_id") @db.ObjectId
+  key   String @unique
+  value Json
+}
+
+// ---- Discovery ----
+
+// Fandoms and tags share one model. `key` is the lowercased, space-collapsed
+// name, so "Slow Burn" and "slow  burn" are the same tag (lib/tags.ts).
+model Tag {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  kind        TagKind
+  name        String
+  key         String
+  createdById String?  @db.ObjectId
+  createdAt   DateTime @default(now())
+
+  createdBy User?     @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  books     BookTag[]
+
+  @@unique([kind, key])
+  @@index([createdAt])
+}
+
+model BookTag {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  fanficId String @db.ObjectId
+  tagId    String @db.ObjectId
+
+  fanfic Fanfic @relation(fields: [fanficId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([fanficId, tagId])
+  @@index([tagId])
+}
+
+// ---- Social ----
+
+model Follow {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  followerId     String   @db.ObjectId
+  followingId    String   @db.ObjectId
+  // The book the follow came from, for "followers gained" in writer stats.
+  sourceFanficId String?  @db.ObjectId
+  createdAt      DateTime @default(now())
+
+  follower  User    @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following User    @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+  source    Fanfic? @relation(fields: [sourceFanficId], references: [id], onDelete: SetNull)
+
+  @@unique([followerId, followingId])
+  @@index([followingId, createdAt])
+  @@index([sourceFanficId, createdAt])
+}
+
+model Block {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  blockerId String   @db.ObjectId
+  blockedId String   @db.ObjectId
+  createdAt DateTime @default(now())
+
+  blocker User @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockedId])
+}
+
+// ---- Reading ----
+
+model LibraryEntry {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  fanficId  String   @db.ObjectId
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fanfic Fanfic @relation(fields: [fanficId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fanficId])
+  @@index([fanficId, createdAt])
+}
+
+model ReadingProgress {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  fanficId  String   @db.ObjectId
+  chapterId String   @db.ObjectId
+  pageIndex Int
+  updatedAt DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fanfic Fanfic @relation(fields: [fanficId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fanficId])
+  @@index([userId, updatedAt])
+}
+
+// ---- Families ----
+
+// A parent account linked to a child (ages 7 to 15). One parent can have
+// several children; a child has one parent link at most.
+model FamilyLink {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  parentId  String   @db.ObjectId
+  childId   String   @unique @db.ObjectId
+  createdAt DateTime @default(now())
+
+  parent User @relation("FamilyParent", fields: [parentId], references: [id], onDelete: Cascade)
+  child  User @relation("FamilyChild", fields: [childId], references: [id], onDelete: Cascade)
+
+  @@index([parentId])
+}
+
+// The parent invite sent at sign-up. Only hashes of the link token and the SMS
+// code are stored. The contact is private: never shown to anyone.
+model ConsentRequest {
+  id        String        @id @default(auto()) @map("_id") @db.ObjectId
+  childId   String        @unique @db.ObjectId
+  method    ContactMethod
+  contact   String
+  tokenHash String        @unique
+  codeHash  String?
+  // Wrong SMS codes entered for this request.
+  attempts  Int           @default(0)
+  expiresAt DateTime
+  sentAt    DateTime      @default(now())
+
+  child User @relation(fields: [childId], references: [id], onDelete: Cascade)
+}
+
+// Proof of consent: who agreed, for whom, how, when, and the exact text.
+model ConsentRecord {
+  id        String        @id @default(auto()) @map("_id") @db.ObjectId
+  parentId  String        @db.ObjectId
+  childId   String        @db.ObjectId
+  method    ContactMethod
+  text      String
+  grantedAt DateTime      @default(now())
+  revokedAt DateTime?
+
+  @@index([childId, grantedAt])
+  @@index([parentId])
+}
+
+// One-time links sent by email: family accounts signing in (they have no
+// password), and anyone resetting a forgotten password.
+model LoginToken {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String    @db.ObjectId
+  // FAMILY_LOGIN or PASSWORD_RESET: a link only works for what it was sent for.
+  purpose   String    @default("FAMILY_LOGIN")
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, purpose])
+}
+
+// ---- Coins and themes ----
+
+// Every change to a coin balance. User.coins is kept equal to the sum.
+model CoinTransaction {
+  id        String     @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String     @db.ObjectId
+  amount    Int
+  reason    CoinReason
+  fanficId  String?    @db.ObjectId
+  chapterId String?    @db.ObjectId
+  theme     String?
+  note      String?
+  createdAt DateTime   @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, reason, createdAt])
+  @@index([fanficId])
+}
+
+// What has earned coins, so nothing earns twice: once per book or chapter
+// (objectKey), and once per piece of writing (fingerprint of its first 300
+// words), even if it's deleted and posted again.
+model CoinEarning {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  kind        String
+  objectKey   String   @unique
+  fingerprint String
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, kind, fingerprint])
+}
+
+model ThemeOwnership {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  theme     String
+  // PURCHASE or GIFT (the admin's /givetheme).
+  source    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, theme])
+}
+
+// ---- Messages ----
+
+// "Message admin": one private chat per user with the admin (the creator of Writt).
+model Conversation {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String   @unique @db.ObjectId
+  lastMessageAt DateTime @default(now())
+  // The latest message, shortened, for the admin's inbox.
+  lastPreview   String   @default("")
+  // Messages each side hasn't seen yet; reset when they open the chat.
+  unreadByAdmin Int      @default(0)
+  unreadByUser  Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages DirectMessage[]
+
+  @@index([lastMessageAt])
+}
+
+model DirectMessage {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  conversationId String   @db.ObjectId
+  fromAdmin      Boolean
+  body           String
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+}

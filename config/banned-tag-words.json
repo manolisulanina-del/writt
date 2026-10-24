@@ -1,0 +1,4 @@
+{
+  "_comment": "Words no fandom or tag may contain (matched as whole words, ignoring case). Edit this list and restart the server. The admin's /bantag command adds more words without editing this file.",
+  "words": ["nazi", "kkk", "pedo", "pedophile", "rape", "slur", "retard", "faggot", "nigger", "tranny", "kys", "killyourself"]
+}

@@ -1,0 +1,171 @@
+/* Analog Horror homepage theme (ages 12+): an old VHS tape. Scan lines, a little
+   static, washed-out colors and timestamp-style text. Eerie, never gory.
+   Safety: no flashing (static drifts slowly at constant brightness, no flicker
+   faster than once every few seconds), no sounds, and with "reduce motion" the
+   static and drift are turned off entirely. Scoped to [data-home-theme="analog-horror"]. */
+
+[data-home-theme="analog-horror"] {
+  --paper: #191c19;
+  --surface: #222622;
+  --muted: #2c312c;
+  --ink: #e6e2cf;
+  --ink-soft: #aaa790;
+  --line: #3c4139;
+  --accent: #c9b458;
+  --accent-strong: #ddc96a;
+  --accent-soft: #3a3622;
+  --on-accent: #17170f;
+  --plum: #94b8a7;
+  --plum-soft: #263029;
+  --success: #9ccf9a;
+  --shadow: 0 0 0;
+  --theme-heading-font: var(--font-vhs), ui-monospace, monospace;
+  color-scheme: dark;
+  /* The element must be positioned (relative or absolute) by its markup. */
+  isolation: isolate;
+  overflow: clip;
+  counter-reset: tape;
+  background:
+    radial-gradient(ellipse at center, transparent 55%, rgb(0 0 0 / 0.55) 100%),
+    #191c19;
+}
+
+[data-home-theme="analog-horror"] :is(h1, h2) {
+  font-family: var(--theme-heading-font);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-shadow:
+    1px 0 rgb(255 60 60 / 0.25),
+    -1px 0 rgb(60 200 255 / 0.25);
+}
+
+/* Washed-out covers. */
+[data-home-theme="analog-horror"] img {
+  filter: saturate(0.6) contrast(0.95) sepia(0.15);
+}
+
+/* Scan lines (above the content, never blocking clicks). */
+[data-home-theme="analog-horror"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  background: repeating-linear-gradient(to bottom, rgb(0 0 0 / 0.16) 0 1px, transparent 1px 3px);
+}
+
+/* Static: fine noise that drifts slowly. Same brightness all the time, so it never flashes. */
+[data-home-theme="analog-horror"]::after {
+  content: "";
+  position: absolute;
+  inset: -50%;
+  z-index: 21;
+  pointer-events: none;
+  opacity: 0.07;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation: vhs-static 9s linear infinite;
+}
+
+@keyframes vhs-static {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-180px, 120px, 0);
+  }
+}
+
+/* A soft "tracking" band that rolls slowly down the screen. */
+[data-home-theme="analog-horror"] .vhs-tracking {
+  position: absolute;
+  inset-inline: 0;
+  top: -10%;
+  z-index: 19;
+  height: 6rem;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, rgb(230 226 207 / 0.035), transparent);
+  animation: vhs-roll 14s linear infinite;
+}
+
+@keyframes vhs-roll {
+  to {
+    top: 110%;
+  }
+}
+
+/* The on-screen display: REC, timestamp, PLAY. */
+[data-home-theme="analog-horror"] .vhs-osd {
+  font-family: var(--font-vhs), ui-monospace, monospace;
+  letter-spacing: 0.08em;
+  color: #e6e2cf;
+  text-shadow: 0 0 6px rgb(230 226 207 / 0.25);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-home-theme="analog-horror"]::after,
+  [data-home-theme="analog-horror"] .vhs-tracking {
+    display: none;
+  }
+}
+
+/* Each section is a numbered tape: "TAPE 01 · …", with its title on a paper label. */
+[data-home-theme="analog-horror"] [data-theme-part="heading"] {
+  counter-increment: tape;
+}
+[data-home-theme="analog-horror"] [data-theme-part="heading"] [data-theme-part="kicker"] {
+  font-family: var(--font-vhs), ui-monospace, monospace;
+  font-size: 0.95rem;
+  letter-spacing: 0.18em;
+}
+[data-home-theme="analog-horror"] [data-theme-part="heading"] [data-theme-part="kicker"]::before {
+  content: "TAPE " counter(tape, decimal-leading-zero) " · ";
+  color: var(--accent);
+}
+[data-home-theme="analog-horror"] [data-theme-part="heading"] h2 {
+  display: inline-block;
+  margin-top: 0.3rem;
+  padding: 0.05em 0.45em;
+  background: #e6e2cf;
+  color: #17170f;
+  text-shadow: none;
+  rotate: -0.6deg;
+  box-shadow: 3px 3px 0 rgb(0 0 0 / 0.55);
+}
+
+/* Dividers are faded test-card color bars. */
+[data-home-theme="analog-horror"] [data-theme-part="rule"] {
+  height: 6px;
+  opacity: 0.55;
+  background: linear-gradient(
+    90deg,
+    #bdbdbd 0 14.28%,
+    #bdbd3c 0 28.57%,
+    #3cbdbd 0 42.85%,
+    #3cbd3c 0 57.14%,
+    #bd3cbd 0 71.42%,
+    #bd3c3c 0 85.71%,
+    #3c3cbd 0
+  );
+}
+
+/* Covers sit in a tape-case outline, and split into red and blue on hover. */
+[data-home-theme="analog-horror"] [data-theme-part="cover"] {
+  outline: 2px solid #3c4139;
+  outline-offset: 3px;
+}
+[data-home-theme="analog-horror"] [data-theme-part="card"]:hover [data-theme-part="cover"] {
+  box-shadow:
+    3px 0 0 rgb(255 60 60 / 0.35),
+    -3px 0 0 rgb(60 200 255 / 0.35);
+}
+
+/* Fandom tiles look like tape spines: dark, outlined, cream text. */
+[data-home-theme="analog-horror"] [data-theme-part="fandom"] {
+  background: var(--surface);
+  color: var(--ink);
+  outline: 2px solid #3c4139;
+  outline-offset: -6px;
+  font-family: var(--font-vhs), ui-monospace, monospace;
+  letter-spacing: 0.04em;
+}
