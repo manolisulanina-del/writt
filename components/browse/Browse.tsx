@@ -1,7 +1,10 @@
 import { FanficCard, FanficGrid } from "@/components/fanfic/FanficCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LENGTHS, RATINGS, SORTS, type SortValue } from "@/lib/content";
-import { browseBooks, type BrowseFilters } from "@/lib/queries";
+import Link from "next/link";
+import { Handle } from "@/components/ui/AdminBadge";
+import { Avatar } from "@/components/ui/Avatar";
+import { browseBooks, searchPeople, type BrowseFilters } from "@/lib/queries";
 import { inputClass } from "@/components/ui/Field";
 import type { ViewerContext } from "@/lib/viewer";
 
@@ -73,13 +76,43 @@ export function FilterBar({ action, filters, showSearch = true }: { action: stri
   );
 }
 
+/** People matching the search, shown above the books. Typing "@name" brings up that profile first. */
+function People({ people }: { people: Awaited<ReturnType<typeof searchPeople>> }) {
+  return (
+    <section aria-labelledby="people-heading" className="mb-10">
+      <h2 id="people-heading" className="mb-3 font-display text-2xl font-semibold">
+        People
+      </h2>
+      <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {people.map((p) => (
+          <li key={p.id}>
+            <Link
+              href={`/u/${p.username}`}
+              className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-3 transition hover:border-accent hover:shadow-card"
+            >
+              <Avatar src={p.image} name={p.username} size={44} />
+              <span className="min-w-0 truncate font-semibold">
+                <Handle username={p.username} role={p.role} />
+              </span>
+              <span className="ml-auto text-xs font-semibold text-ink-soft">View profile →</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export async function Results({ filters, ctx }: { filters: BrowseFilters; ctx: ViewerContext }) {
-  const books = await browseBooks(filters, ctx);
+  const [books, people] = await Promise.all([browseBooks(filters, ctx), filters.q ? searchPeople(filters.q, ctx) : []]);
   if (books.length === 0) {
-    return <EmptyState title="No books found">Try a different search, or loosen the filters.</EmptyState>;
+    if (people.length > 0) return <People people={people} />;
+    return <EmptyState title="No books or people found">Try a different search, or loosen the filters.</EmptyState>;
   }
   return (
     <>
+      {people.length > 0 && <People people={people} />}
+      <h2 className="mb-1 font-display text-2xl font-semibold">Books</h2>
       <p className="mb-4 text-sm text-ink-soft">
         {books.length === 48 ? "Showing the first 48 books" : `${books.length} book${books.length === 1 ? "" : "s"}`}
       </p>

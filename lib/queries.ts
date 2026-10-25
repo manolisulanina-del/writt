@@ -125,6 +125,33 @@ const SORT_ORDER: Record<SortValue, Prisma.FanficOrderByWithRelationInput[]> = {
   updated: [{ contentUpdatedAt: "desc" }],
 };
 
+/**
+ * People whose username matches a search ("@mira" or "mira"), best matches
+ * first: exact, then names starting with it, then names containing it. Family
+ * accounts, banned or unfinished accounts, and people the viewer blocked never show.
+ */
+export async function searchPeople(q: string | undefined, ctx: ViewerContext, take = 8) {
+  const term = (q ?? "").trim().slice(0, 40).toLowerCase().replace(/^@+/, "").replace(/\s+/g, "");
+  if (term.length < 1) return [];
+  const rows = await prisma.user.findMany({
+    where: {
+      username: { contains: term },
+      needsSetup: false,
+      kind: "WRITER",
+      ...(ctx.blockedIds.length ? { id: { notIn: ctx.blockedIds } } : {}),
+    },
+    select: { id: true, username: true, image: true, role: true, bannedUntil: true },
+    take: 60,
+  });
+  // Banned accounts are filtered here: a "no ban" filter in the query would miss accounts that never had the field.
+  const rank = (name: string) => (name === term ? 0 : name.startsWith(term) ? 1 : 2);
+  return rows
+    .filter((r) => !r.bannedUntil || r.bannedUntil.getTime() <= Date.now())
+    .sort((a, b) => rank(a.username) - rank(b.username) || a.username.length - b.username.length || a.username.localeCompare(b.username))
+    .slice(0, take)
+    .map(({ bannedUntil, ...person }) => (void bannedUntil, person));
+}
+
 /** Public books matching a search and filters, respecting the viewer's blocks, age and feed settings. */
 export async function browseBooks(filters: BrowseFilters, ctx: ViewerContext, take = 48) {
   const and: Prisma.FanficWhereInput[] = [LISTED, bookFilter(ctx, true)];
