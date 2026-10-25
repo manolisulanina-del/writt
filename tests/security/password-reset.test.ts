@@ -3,7 +3,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { Jar, assertTestServer, callFormAction, db, login, warmUp } from "../helpers/server";
+import { Jar, assertTestServer, callFormAction, db, get, login, warmUp } from "../helpers/server";
 
 const RUN = Date.now().toString(36);
 const PW = "Reset-Test-Pass-2026!";
@@ -109,4 +109,26 @@ describe("parent step", () => {
     expect(res.body).toContain("Writt can’t send text messages yet.");
     expect(await db.consentRequest.count({ where: { childId: kid.id } })).toBe(0);
   });
+});
+
+describe("admin account hardening", () => {
+  it("can't be recovered with a security question, only by email link", async () => {
+    const admin = await db.user.findFirstOrThrow({ where: { username: "annamanoliadmin" }, select: { id: true } });
+    const res = await callFormAction(new Jar(), "/forgot-password", "recoveryAction", { identifier: "annamanoliadmin" }, [], { step: "identify" });
+    expect(res.body).toContain("only be reset with");
+    expect(admin.id).toBeTruthy();
+  });
+
+  it("a password reset signs out devices that were already logged in", async () => {
+    const old = await login(user.username, NEW_PW);
+    expect((await get("/settings", old)).status).toBe(200);
+    const token = await link("PASSWORD_RESET");
+    await callFormAction(new Jar(), "/reset-password", "resetPasswordAction", { password: PW, confirmPassword: PW }, [token]);
+    // Logins are re-checked against the database about once a minute.
+    await db.user.findUniqueOrThrow({ where: { id: user.id }, select: { sessionVersion: true } });
+    await new Promise((r) => setTimeout(r, 61_000));
+    const after = await get("/settings", old);
+    expect(after.status === 307 || after.status === 302 || (after.location ?? "").includes("/login")).toBe(true);
+    await expect(login(user.username, PW)).resolves.toBeDefined();
+  }, 120_000);
 });

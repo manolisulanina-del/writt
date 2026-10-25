@@ -37,8 +37,15 @@ declare module "@auth/core/jwt" {
     needsSetup?: boolean;
     needsBirthDate?: boolean;
     role?: Role;
+    /** The account's sessionVersion when this login was made. */
+    sv?: number;
+    /** When the account was last re-checked against the database (ms). */
+    checkedAt?: number;
   }
 }
+
+/** How often a login is re-checked against the database (password changes, role). */
+const RECHECK_MS = 60_000;
 
 export class RateLimitedSignin extends CredentialsSignin {
   code = "rate_limited";
@@ -143,14 +150,30 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
       if (user?.id) token.uid = user.id;
       if (!token.uid) return null;
 
-      // Refresh profile fields on sign-in, after unstable_update(), and once for
-      // sessions issued before the birth-date check existed.
-      if (user || trigger === "update" || token.needsBirthDate === undefined) {
+      // Refresh from the database on sign-in, after unstable_update(), for
+      // sessions from before the birth-date check, and at least once a minute.
+      const stale = !token.checkedAt || Date.now() - token.checkedAt > RECHECK_MS;
+      if (user || trigger === "update" || token.needsBirthDate === undefined || stale) {
         const dbUser = await prisma.user.findUnique({
           where: { id: token.uid },
-          select: { username: true, needsSetup: true, birthDate: true, kind: true, role: true, image: true, name: true, email: true },
+          select: {
+            username: true,
+            needsSetup: true,
+            birthDate: true,
+            kind: true,
+            role: true,
+            image: true,
+            name: true,
+            email: true,
+            sessionVersion: true,
+          },
         });
         if (!dbUser) return null;
+        // The password changed since this login was made: it no longer works
+        // (returning null signs this browser out). A new sign-in gets the current version.
+        if (user) token.sv = dbUser.sessionVersion;
+        else if ((token.sv ?? 0) !== dbUser.sessionVersion) return null;
+        token.checkedAt = Date.now();
 
         // Keep the role in sync on every sign-in: promote the admin (ADMIN_EMAIL,
         // and ADMIN_USER_ID when set), and demote anyone else holding the role.

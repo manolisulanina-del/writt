@@ -41,6 +41,7 @@ const DEFAULTS: Record<string, Record<string, Value>> = {
     kidGroup: null,
     coins: 0,
     homeTheme: "default",
+    sessionVersion: 0,
   },
 };
 

@@ -8,9 +8,13 @@ export interface SmsSender {
   send(to: string, body: string): Promise<void>;
 }
 
-/** Stand-in: the text goes to the server log instead of a phone. */
+/** Stand-in: the text goes to the server log instead of a phone (in production, not its code or link). */
 class LogSms implements SmsSender {
   async send(to: string, body: string) {
+    if (process.env.NODE_ENV === "production") {
+      console.warn("[sms not sent: no SMS provider set up]");
+      return;
+    }
     console.info(`\n[sms, not sent: no SMS provider set up]\nTo: ${to}\n${body}\n`);
   }
 }

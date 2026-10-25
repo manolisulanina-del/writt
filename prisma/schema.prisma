@@ -118,6 +118,9 @@ model User {
   // Free-form display name shown on the profile. Not unique; `username` stays the handle.
   nickname           String?
   passwordHash       String?
+  // Raised whenever the password changes: every login made before that stops
+  // working (auth.ts checks it), so a reset signs out every other device.
+  sessionVersion     Int     @default(0)
   phone              String?
   bio                String?
   securityQuestion   String?

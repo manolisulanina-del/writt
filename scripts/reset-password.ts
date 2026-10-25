@@ -64,7 +64,8 @@ async function main() {
       console.log("Nothing changed.");
       return;
     }
-    await prisma.user.update({ where: { id: user.id }, data: { passwordHash: await hashSecret(password) } });
+    // A new password also signs out every device that was logged in.
+    await prisma.user.update({ where: { id: user.id }, data: { passwordHash: await hashSecret(password), sessionVersion: { increment: 1 } } });
     // Clear failed-login lockouts so you can log in right away.
     await prisma.rateLimit.deleteMany({ where: { key: { in: [`login:${user.username}`, `login:${user.email ?? ""}`] } } });
     console.log(`Done. Log in as @${user.username} with your new password.`);

@@ -125,11 +125,13 @@ export async function callFormAction(
   fields: Record<string, string>,
   /** Arguments bound with .bind(null, ...) in the page, sent before the form state. */
   bound: unknown[] = [],
+  /** The previous form state (the first argument of a useActionState action). */
+  state: unknown = {},
 ): Promise<ActionResult> {
   const id = actionId(name);
   const form = new FormData();
   for (const [key, value] of Object.entries(fields)) form.append(`_1_${key}`, value);
-  form.append("0", JSON.stringify([...bound, {}, "$K1"]));
+  form.append("0", JSON.stringify([...bound, state, "$K1"]));
   const res = await fetch(BASE + pathname, {
     method: "POST",
     redirect: "manual",

@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import { signOutEverywhereAction } from "@/actions/auth";
 import { BlockedList, ContentPrefsForm } from "@/components/settings/SettingsForms";
-import { LinkButton } from "@/components/ui/Button";
+import { Button, LinkButton } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/EmptyState";
 import { ageFrom, ageGroup } from "@/lib/content";
 import { prisma } from "@/lib/db";
@@ -93,6 +94,17 @@ async function Body() {
         </h2>
         <p className="mb-4 text-sm text-ink-soft">They can’t comment on your books, and their books and comments are hidden from you.</p>
         <BlockedList users={blocks.map((b) => b.blocked)} />
+      </section>
+      <section aria-labelledby="security-heading">
+        <h2 id="security-heading" className="mb-1 font-display text-2xl font-semibold">
+          Security
+        </h2>
+        <p className="mb-4 text-sm text-ink-soft">Lost a device, or logged in somewhere you shouldn’t have? This signs you out everywhere, including here.</p>
+        <form action={signOutEverywhereAction}>
+          <Button type="submit" variant="secondary">
+            Sign out on all devices
+          </Button>
+        </form>
       </section>
     </div>
   );

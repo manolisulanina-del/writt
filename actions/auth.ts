@@ -6,9 +6,9 @@ import { z } from "zod";
 import { placeholderUsername, signIn, signOut } from "@/auth";
 import { prisma } from "@/lib/db";
 import { oauthProviders, type OAuthProviderId } from "@/lib/config";
-import { roleForNewAccount } from "@/lib/auth/admin-identity";
+import { isAdmin, roleForNewAccount } from "@/lib/auth/admin-identity";
 import { consentFieldsFor } from "@/lib/kids";
-import { landingPath } from "@/lib/session";
+import { getCurrentUser, landingPath } from "@/lib/session";
 import { config } from "@/lib/config";
 import { sendEmail } from "@/lib/email";
 import { passwordResetEmail } from "@/lib/email-templates";
@@ -125,6 +125,13 @@ export async function signOutAction() {
   await signOut({ redirectTo: "/login" });
 }
 
+/** Signs this account out on every device (each one notices within a minute), then here. */
+export async function signOutEverywhereAction() {
+  const user = await getCurrentUser();
+  if (user) await prisma.user.update({ where: { id: user.id }, data: { sessionVersion: { increment: 1 } } });
+  await signOut({ redirectTo: "/login" });
+}
+
 // ---- Forgot password (security question) ----
 
 export type RecoveryState = FormState & {
@@ -138,9 +145,15 @@ const identifierSchema = z.string().trim().toLowerCase().min(1, "Enter your emai
 function findByIdentifier(identifier: string) {
   return prisma.user.findFirst({
     where: identifier.includes("@") ? { email: identifier } : { username: identifier },
-    select: { id: true, email: true, username: true, securityQuestion: true, securityAnswerHash: true },
+    select: { id: true, email: true, username: true, role: true, securityQuestion: true, securityAnswerHash: true },
   });
 }
+
+/**
+ * The admin account can't be recovered with a security question: answers can
+ * be guessed or looked up. It resets only through a link sent to its email.
+ */
+const ADMIN_RECOVERY = "This account can only be reset with “Email me a reset link”.";
 
 export async function recoveryAction(state: RecoveryState, formData: FormData): Promise<RecoveryState> {
   const limit = await rateLimit(`recover-ip:${await clientIp()}`, 20, 15 * 60_000);
@@ -154,6 +167,7 @@ export async function recoveryAction(state: RecoveryState, formData: FormData): 
   const user = await findByIdentifier(identifier);
 
   if (state.step === "identify") {
+    if (user && isAdmin(user)) return { step: "identify", values: { identifier }, error: ADMIN_RECOVERY };
     if (!user?.securityQuestion || !user.securityAnswerHash) {
       return {
         step: "identify",
@@ -166,6 +180,7 @@ export async function recoveryAction(state: RecoveryState, formData: FormData): 
   }
 
   // Step 2: check the answer and set a new password.
+  if (user && isAdmin(user)) return { step: "identify", values: { identifier }, error: ADMIN_RECOVERY };
   if (!user?.securityQuestion || !user.securityAnswerHash) return { step: "identify" };
   const answerLimit = await rateLimit(`recover:${user.id}`, 5, 30 * 60_000);
   const base = { step: "answer" as const, identifier, question: user.securityQuestion };
@@ -190,9 +205,10 @@ export async function recoveryAction(state: RecoveryState, formData: FormData): 
     return { ...base, fieldErrors: { answer: ["That answer doesn’t match."] } };
   }
 
+  // A new password signs out every device that was logged in.
   await prisma.user.update({
     where: { id: user.id },
-    data: { passwordHash: await hashSecret(parsed.data.password) },
+    data: { passwordHash: await hashSecret(parsed.data.password), sessionVersion: { increment: 1 } },
   });
   return { step: "done" };
 }
@@ -241,7 +257,8 @@ export async function resetPasswordAction(token: string, _: FormState, formData:
   if ((await consumeLoginToken(String(token), "PASSWORD_RESET")) !== userId) {
     return { error: "This link has expired or was already used. Ask for a new one." };
   }
-  await prisma.user.update({ where: { id: userId }, data: { passwordHash: await hashSecret(parsed.data.password) } });
+  // A new password signs out every device that was logged in.
+  await prisma.user.update({ where: { id: userId }, data: { passwordHash: await hashSecret(parsed.data.password), sessionVersion: { increment: 1 } } });
   await revokeLoginTokens(userId, "PASSWORD_RESET");
   // Clear failed-login lockouts so the new password works right away.
   await prisma.rateLimit.deleteMany({ where: { key: { in: [`login:${user.username}`, `login:${user.email ?? ""}`] } } });

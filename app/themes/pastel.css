@@ -111,3 +111,20 @@
 [data-home-theme="pastel"] li:nth-child(4n + 4) > [data-theme-part="fandom"] {
   background: #fff0c2;
 }
+
+/* Scrollbar: a candy-pink pill on a lilac track. The page itself scrolls, so
+   the theme sets it on the root while a themed homepage is shown. */
+html:has([data-home-theme="pastel"]) {
+  scrollbar-color: #ff9ec6 #f3e8ff;
+}
+html:has([data-home-theme="pastel"])::-webkit-scrollbar {
+  width: 14px;
+}
+html:has([data-home-theme="pastel"])::-webkit-scrollbar-track {
+  background: #f3e8ff;
+}
+html:has([data-home-theme="pastel"])::-webkit-scrollbar-thumb {
+  background: #ff9ec6;
+  border: 3px solid #f3e8ff;
+  border-radius: 999px;
+}

@@ -169,3 +169,19 @@
   font-family: var(--font-vhs), ui-monospace, monospace;
   letter-spacing: 0.04em;
 }
+
+/* Scrollbar: a worn cream "tracking" bar on a dark tape-green track. */
+html:has([data-home-theme="analog-horror"]) {
+  scrollbar-color: #aaa790 #191c19;
+}
+html:has([data-home-theme="analog-horror"])::-webkit-scrollbar {
+  width: 12px;
+}
+html:has([data-home-theme="analog-horror"])::-webkit-scrollbar-track {
+  background: #191c19;
+  border-left: 1px solid #3c4139;
+}
+html:has([data-home-theme="analog-horror"])::-webkit-scrollbar-thumb {
+  background: repeating-linear-gradient(to bottom, #aaa790 0 6px, #8a8770 6px 8px);
+  border: 2px solid #191c19;
+}

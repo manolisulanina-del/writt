@@ -26,9 +26,17 @@ class ResendSender implements EmailSender {
   }
 }
 
-/** Stand-in until a key is set: the email goes to the server log instead. */
+/**
+ * Stand-in until a key is set. In development the whole email goes to the
+ * server log. In production only the subject does: emails hold one-time sign-in
+ * and reset links, which must never sit in logs other people can read.
+ */
 class LogSender implements EmailSender {
   async send(email: Email) {
+    if (process.env.NODE_ENV === "production") {
+      console.warn(`[email not sent: RESEND_API_KEY isn't set] "${email.subject}"`);
+      return;
+    }
     console.info(`\n[email, not sent: set RESEND_API_KEY to send]\nTo: ${email.to}\nSubject: ${email.subject}\n\n${email.text}\n`);
   }
 }

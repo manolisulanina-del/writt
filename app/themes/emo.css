@@ -102,3 +102,20 @@
   color: var(--ink);
   border-left: 5px solid var(--accent);
 }
+
+/* Scrollbar: a blood-red bar on black, with sharp edges. */
+html:has([data-home-theme="emo"]) {
+  scrollbar-color: #c4183c #0e0b10;
+}
+html:has([data-home-theme="emo"])::-webkit-scrollbar {
+  width: 12px;
+}
+html:has([data-home-theme="emo"])::-webkit-scrollbar-track {
+  background: #0e0b10;
+  border-left: 1px solid #3a2a3c;
+}
+html:has([data-home-theme="emo"])::-webkit-scrollbar-thumb {
+  background: #c4183c;
+  border: 2px solid #0e0b10;
+  border-radius: 0;
+}
